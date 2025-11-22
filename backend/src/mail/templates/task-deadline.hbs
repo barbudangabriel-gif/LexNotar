@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #EF4444; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 5px 5px; }
+        .alert { background: #FEF2F2; border-left: 4px solid #EF4444; padding: 15px; margin: 20px 0; }
+        .priority { display: inline-block; padding: 5px 10px; border-radius: 3px; font-weight: bold; }
+        .priority-HIGH { background: #FEE2E2; color: #991B1B; }
+        .priority-URGENT { background: #7F1D1D; color: white; }
+        .button { display: inline-block; padding: 12px 24px; background: #EF4444; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚠️ Task Deadline Alert</h1>
+        </div>
+        <div class="content">
+            <h2>Hello {{userName}}!</h2>
+            <div class="alert">
+                <p><strong>Task deadline is approaching!</strong></p>
+                <p><strong>Task:</strong> {{taskTitle}}</p>
+                <p><strong>Due Date:</strong> {{taskDueDate}}</p>
+                <p><strong>Priority:</strong> <span class="priority priority-{{taskPriority}}">{{taskPriority}}</span></p>
+            </div>
+            <p>This task requires your attention. Please ensure it's completed before the deadline.</p>
+            <a href="{{taskUrl}}" class="button">View Task Details</a>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 LexNotar. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

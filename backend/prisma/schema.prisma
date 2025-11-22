@@ -1,0 +1,384 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  ADMIN
+  NOTAR
+  ASISTENT
+  CONTABIL
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum CaseStatus {
+  DRAFT
+  IN_PROGRESS
+  PENDING_SIGNATURE
+  COMPLETED
+  ARCHIVED
+  CANCELLED
+}
+
+enum CaseType {
+  VANZARE_CUMPARARE
+  DONATIE
+  SCHIMB
+  SUCCESIUNE
+  PROCURA
+  TESTAMENT
+  CONTRACTE_IMOBILIARE
+  CONTRACTE_COMERCIALE
+  CERTIFICARE_SEMNATURA
+  ALTE_ACTE
+}
+
+enum DocumentStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  SIGNED
+  REJECTED
+  ARCHIVED
+}
+
+enum SignatureStatus {
+  PENDING
+  SIGNED
+  REJECTED
+  EXPIRED
+}
+
+// ============================================================================
+// CORE ENTITIES
+// ============================================================================
+
+model Office {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  address   String
+  city      String
+  county    String
+  phone     String?
+  email     String?
+  active    Boolean  @default(true)
+  
+  // Settings
+  timezone  String   @default("Europe/Bucharest")
+  language  String   @default("ro")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  users     User[]
+  clients   Client[]
+  cases     Case[]
+  
+  @@map("offices")
+}
+
+model User {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  password      String
+  firstName     String
+  lastName      String
+  phone         String?
+  role          UserRole    @default(ASISTENT)
+  status        UserStatus  @default(ACTIVE)
+  
+  // Office relation
+  officeId      String
+  office        Office      @relation(fields: [officeId], references: [id])
+  
+  // Professional details (for Notar)
+  licenseNumber String?
+  
+  // Auth tokens
+  refreshToken  String?
+  
+  // Timestamps
+  lastLoginAt   DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relations
+  casesCreated  Case[]      @relation("CaseCreator")
+  casesAssigned Case[]      @relation("CaseAssignee")
+  tasksCreated  Task[]      @relation("TaskCreator")
+  tasksAssigned Task[]      @relation("TaskAssignee")
+  documents     Document[]
+  documentVersions DocumentVersion[]
+  auditLogs     AuditLog[]
+  
+  @@index([email])
+  @@index([officeId])
+  @@map("users")
+}
+
+model Client {
+  id        String   @id @default(uuid())
+  
+  // Personal/Company info
+  type      String   // 'INDIVIDUAL' | 'LEGAL_ENTITY'
+  firstName String?
+  lastName  String?
+  companyName String?
+  
+  // Identification
+  cnp       String?  @unique // CNP pentru persoane fizice
+  cui       String?  @unique // CUI pentru persoane juridice
+  idSeries  String?
+  idNumber  String?
+  
+  // Contact
+  email     String?
+  phone     String?
+  address   String?
+  city      String?
+  county    String?
+  
+  // Office relation
+  officeId  String
+  office    Office   @relation(fields: [officeId], references: [id])
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  caseParties CaseParty[]
+  
+  @@index([cnp])
+  @@index([cui])
+  @@index([officeId])
+  @@map("clients")
+}
+
+model Case {
+  id            String      @id @default(uuid())
+  caseNumber    String      @unique // Auto-generated: REP-2025-001
+  type          CaseType
+  status        CaseStatus  @default(DRAFT)
+  
+  // Description
+  title         String
+  description   String?
+  
+  // Dates
+  startDate     DateTime    @default(now())
+  completionDate DateTime?
+  
+  // Financial
+  estimatedValue Decimal?   @db.Decimal(15, 2)
+  actualValue    Decimal?   @db.Decimal(15, 2)
+  
+  // Office and assignment
+  officeId      String
+  office        Office      @relation(fields: [officeId], references: [id])
+  
+  createdById   String
+  createdBy     User        @relation("CaseCreator", fields: [createdById], references: [id])
+  
+  assignedToId  String?
+  assignedTo    User?       @relation("CaseAssignee", fields: [assignedToId], references: [id])
+  
+  // Timestamps
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relations
+  parties       CaseParty[]
+  documents     Document[]
+  tasks         Task[]
+  
+  @@index([caseNumber])
+  @@index([officeId])
+  @@index([status])
+  @@map("cases")
+}
+
+model CaseParty {
+  id       String  @id @default(uuid())
+  role     String  // 'BUYER', 'SELLER', 'HEIR', 'DONOR', etc.
+  
+  caseId   String
+  case     Case    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+  
+  createdAt DateTime @default(now())
+  
+  @@index([caseId])
+  @@index([clientId])
+  @@map("case_parties")
+}
+
+model Document {
+  id           String          @id @default(uuid())
+  title        String
+  type         String          // 'CONTRACT', 'PROCURA', 'TESTAMENT', etc.
+  status       DocumentStatus  @default(DRAFT)
+  
+  // File info
+  fileName     String?
+  filePath     String?
+  fileSize     Int?
+  mimeType     String?
+  
+  // Template info
+  templateId   String?
+  templateData Json?           // JSON data for template rendering
+  
+  // Case relation
+  caseId       String
+  case         Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  
+  // Creator
+  createdById  String
+  createdBy    User            @relation(fields: [createdById], references: [id])
+  
+  // Timestamps
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  
+  // Relations
+  signatures   Signature[]
+  versions     DocumentVersion[]
+  
+  @@index([caseId])
+  @@index([status])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id            String    @id @default(uuid())
+  versionNumber Int
+  
+  // File info
+  fileName      String
+  filePath      String
+  fileSize      Int
+  mimeType      String
+  
+  // Content changes
+  changesSummary String?
+  metadata      Json?
+  
+  // Document relation
+  documentId    String
+  document      Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  // Creator
+  createdById   String
+  createdBy     User      @relation(fields: [createdById], references: [id])
+  
+  createdAt     DateTime  @default(now())
+  
+  @@index([documentId])
+  @@index([createdAt])
+  @@map("document_versions")
+}
+
+model Signature {
+  id          String           @id @default(uuid())
+  status      SignatureStatus  @default(PENDING)
+  
+  // Signer info
+  signerName  String
+  signerEmail String?
+  signerCnp   String?
+  
+  // QES info (if applicable)
+  qesProvider String?
+  qesData     Json?
+  
+  // Signature details
+  signedAt    DateTime?
+  ipAddress   String?
+  
+  // Document relation
+  documentId  String
+  document    Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  @@index([documentId])
+  @@map("signatures")
+}
+
+model Task {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  priority    String    @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status      String    @default("TODO") // TODO, IN_PROGRESS, DONE, CANCELLED
+  
+  dueDate     DateTime?
+  completedAt DateTime?
+  
+  // Case relation (optional)
+  caseId      String?
+  case        Case?     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  
+  // User relations
+  createdById String
+  createdBy   User      @relation("TaskCreator", fields: [createdById], references: [id])
+  
+  assignedToId String?
+  assignedTo   User?    @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([caseId])
+  @@index([status])
+  @@index([assignedToId])
+  @@index([createdById])
+  @@map("tasks")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String   // 'CREATE', 'UPDATE', 'DELETE', 'LOGIN', etc.
+  entityType String   // 'User', 'Case', 'Document', etc.
+  entityId   String
+  
+  // Changes
+  oldValue   Json?
+  newValue   Json?
+  
+  // User info
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  
+  ipAddress  String?
+  userAgent  String?
+  
+  createdAt  DateTime @default(now())
+  
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

@@ -1,0 +1,61 @@
+/* Mobile-optimized calendar styles */
+.calendar-mobile-optimized .rbc-calendar {
+  font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  .calendar-mobile-optimized .rbc-toolbar {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+  
+  .calendar-mobile-optimized .rbc-toolbar-label {
+    font-size: 1rem;
+    padding: 0.5rem 0;
+  }
+  
+  .calendar-mobile-optimized .rbc-btn-group {
+    display: flex;
+    justify-content: center;
+  }
+  
+  .calendar-mobile-optimized .rbc-btn-group button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    min-height: 44px; /* Touch-friendly */
+  }
+  
+  .calendar-mobile-optimized .rbc-header {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.75rem;
+  }
+  
+  .calendar-mobile-optimized .rbc-date-cell {
+    padding: 0.25rem;
+  }
+  
+  .calendar-mobile-optimized .rbc-event {
+    padding: 2px 4px;
+    font-size: 0.7rem;
+    min-height: 32px; /* Touch-friendly */
+  }
+  
+  .calendar-mobile-optimized .rbc-month-view {
+    height: auto !important;
+    min-height: 400px;
+  }
+}
+
+/* Touch-friendly buttons and links */
+@media (max-width: 768px) {
+  button, a, .clickable {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  input, select, textarea {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
